@@ -8,7 +8,8 @@ use std::env;
 use std::fmt::Display;
 use std::fs;
 use std::io;
-use std::io::{BufRead, Write};
+use std::io::{BufReader, BufRead, Write};
+use std::process::{Command, Stdio};
 use std::path::PathBuf;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
@@ -193,11 +194,31 @@ impl<'a> Editor<'a> {
                 if search_height > 0 {
                     f.render_widget(self.search.textarea.widget(), chunks[0]);
                 }
+                let functional_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Percentage(60), Constraint::Percentage(100)].as_ref())
+                    .split(chunks[1]);
 
                 let buffer = &self.buffers[self.current];
                 let textarea = &buffer.textarea;
                 let widget = textarea.widget();
-                f.render_widget(widget, chunks[1]);
+                f.render_widget(widget, functional_chunks[0]);
+/*
+                let mut child = Command::new("bash")
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .spawn()
+                    .expect("failed to execute process");
+                {
+                    let stdin = child.stdin.as_mut().expect("failed to open stdin");
+                    write!(stdin, "echo Hello, world!\nexit\n").expect("failed to write to stdin");
+                }
+                let output = child.wait_with_output().expect("failed to read stdout");
+                let stdout = output.stdout;
+                let mut textarea: TextArea = io::BufReader::new(stdout).lines().collect::<io::Result<_>>()?;*/
+
+                let block = Block::default().title("Shell Block").borders(Borders::ALL);
+                f.render_widget(block, functional_chunks[1]);
 
                 // Render status line
                 let modified = if buffer.modified { " [modified]" } else { "" };
@@ -215,7 +236,7 @@ impl<'a> Editor<'a> {
                         ]
                         .as_ref(),
                     )
-                    .split(chunks[2]);
+                    .split(chunks[3]);
                 let status_style = Style::default().add_modifier(Modifier::REVERSED);
                 f.render_widget(Paragraph::new(slot).style(status_style), status_chunks[0]);
                 f.render_widget(Paragraph::new(path).style(status_style), status_chunks[1]);
